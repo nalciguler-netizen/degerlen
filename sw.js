@@ -1,4 +1,4 @@
-const CACHE = 'degerlen-v1';
+const CACHE = 'degerlen-v2';
 const FILES = ['/', '/style.css', '/app.js', '/i18n.js', '/triage.js', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (e) => {

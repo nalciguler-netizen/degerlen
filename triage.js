@@ -92,3 +92,9 @@ export function detectRisk(text) {
   const t = norm(text || '');
   return RISK.some((r) => r.test(t));
 }
+
+export const TRAUMA_FLAG = 3;
+export function traumaScreen(answers) {
+  const score = (answers || []).reduce((n, v) => n + (v ? 1 : 0), 0);
+  return { score, flag: score >= TRAUMA_FLAG };
+}
