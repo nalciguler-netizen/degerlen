@@ -78,26 +78,38 @@ async function handleChat(request, env) {
   if (!env.AI) return json({ error: 'no_ai' }, 500);
   const messages = [{ role: 'system', content: buildSystemPrompt(data) }, ...data.messages];
 
+  let lastErr = '';
   for (const model of MODELS) {
     try {
-      const out = await env.AI.run(model, { messages, max_tokens: 450, temperature: 0.6 });
+      const out = await env.AI.run(model, { messages, max_tokens: 1500, temperature: 0.6 });
       let reply = String(extractText(out) || '').trim();
-      if (!reply) continue;
+      if (!reply) { lastErr = model + ': empty'; continue; }
       if (reply.includes('[[RISK]]')) return json({ risk: true });
       reply = reply.replace(/\*\*/g, '').replace(/^#+\s*/gm, '').slice(0, 1500);
       return json({ reply });
     } catch (e) {
-      // try next model
+      lastErr = model + ': ' + String((e && e.message) || e).slice(0, 300);
+      console.log('ai_error', lastErr);
     }
   }
-  return json({ error: 'busy' }, 503);
+  return json({ error: 'busy', detail: lastErr }, 503);
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/chat') return handleChat(request, env);
-    if (url.pathname === '/api/health') return json({ ok: true });
+    if (url.pathname === '/api/health') {
+      if (url.searchParams.get('ai') !== '1') return json({ ok: true });
+      const res = {};
+      for (const m of MODELS) {
+        try {
+          const o = await env.AI.run(m, { messages: [{ role: 'user', content: 'Merhaba de.' }], max_tokens: 200 });
+          res[m] = { ok: true, sample: String(extractText(o) || '').slice(0, 80), keys: Object.keys(o || {}) };
+        } catch (e) { res[m] = { ok: false, error: String((e && e.message) || e).slice(0, 300) }; }
+      }
+      return json(res);
+    }
     if (env.ASSETS) return env.ASSETS.fetch(request);
     return new Response('Not found', { status: 404 });
   },
